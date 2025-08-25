@@ -5,9 +5,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,34 +20,34 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.simple_keybord.ui.theme.Simple_keybordTheme
-
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            Simple_keybordTheme {
-                MainPage()
-            }
-        }
-    }
-}
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun MainPage() {
     val context = LocalContext.current
+    val themes = MyKeyboardService.Companion.themes
+    var selectedTheme by remember { mutableStateOf("Light") }
 
-    val logo = painterResource(id = R.drawable.logo3)
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
+            .padding(16.dp)
+            .verticalScroll(scrollState), // vertical scrolling
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-
         // Logo
+        val logo = painterResource(id = R.drawable.logo3)
         Image(
             painter = logo,
             contentDescription = "App Logo",
@@ -54,12 +56,8 @@ fun MainPage() {
                 .padding(bottom = 16.dp)
         )
 
-        // Title
-        Text(
-            "Welcome to SnapKeys",
-            fontSize = 24.sp,
-            color = Color.Black
-        )
+        // Titles
+        Text("Welcome to SnapKeys", fontSize = 24.sp, color = Color.Black)
         Text(
             "The Minimalistic Keyboard Experience",
             fontSize = 16.sp,
@@ -74,26 +72,56 @@ fun MainPage() {
         // Enable keyboard button
         Button(
             onClick = { context.startActivity(Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)) },
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier
+                .padding(bottom = 24.dp)
+                .fillMaxWidth()
+                .height(50.dp)
         ) {
             Text("Enable Keyboard")
         }
 
-        // Theme selection buttons
+        // Theme selection label
         Text("Choose Keyboard Theme:", fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MyKeyboardService.Companion.themes.keys.forEach { theme ->
+        // Column of theme buttons
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            themes.keys.forEach { themeName ->
                 Button(
                     onClick = {
-                        // Broadcast intent to notify keyboard of theme change
+                        selectedTheme = themeName
                         val intent = Intent(MyKeyboardService.ACTION_CHANGE_THEME)
-                        intent.putExtra(MyKeyboardService.EXTRA_THEME_NAME, theme)
+                        intent.putExtra(MyKeyboardService.EXTRA_THEME_NAME, selectedTheme)
                         context.sendBroadcast(intent)
-                    }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    border = if (selectedTheme == themeName) androidx.compose.foundation.BorderStroke(
+                        width = 2.dp,
+                        color = Color.Blue
+                    ) else null
                 ) {
-                    Text(theme)
+                    Text(text = themeName)
                 }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(50.dp)) // extra spacing at bottom
+    }
+}
+
+
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent {
+            Simple_keybordTheme {
+                MainPage()
             }
         }
     }

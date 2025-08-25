@@ -23,7 +23,7 @@ class MyKeyboardService : InputMethodService() {
 
     companion object {
         // Configurable variables
-        var keyboardBackgroundColor: Int = 0xFFFFFFFF.toInt() // Light default
+        var keyboardBackgroundColor: Int = 0xFF000000.toInt() // Light default
         var keyBackgroundColor: Int = Color.LTGRAY
         var keyTextColor: Int = Color.BLACK
         var keyBorderColor: Int = Color.BLACK
@@ -34,13 +34,24 @@ class MyKeyboardService : InputMethodService() {
         var keyboardPaddingDp: Int = 5
 
         val themes = mapOf(
+            // Existing themes
             "Dark" to Triple(0xFF000000.toInt(), 0xFF212121.toInt(), Color.WHITE),
-            "Light" to Triple(0xFFFFFFFF.toInt(), Color.LTGRAY, Color.BLACK),
-            "Dracular" to Triple(0xFF000000.toInt(), Color.DKGRAY, Color.RED),
-            "Gray" to Triple(0xFF9E9E9E.toInt(), Color.GRAY, Color.BLACK),
-            "SkyBlue" to Triple(0xFF87CEEB.toInt(), Color.CYAN, Color.BLACK),
-            "Forest" to Triple(0xFF228B22.toInt(), Color.GREEN, Color.WHITE)
+            "Light" to Triple(0xFF000000.toInt(), Color.LTGRAY, Color.BLACK),
+            "Dracula" to Triple(0xFF000000.toInt(), Color.DKGRAY, Color.RED),
+            "Gray" to Triple(0xFF000000.toInt(), Color.GRAY, Color.BLACK),
+            "SkyBlue" to Triple(0xFF000000.toInt(), Color.CYAN, Color.BLACK),
+            "Forest" to Triple(0xFF000000.toInt(), Color.GREEN, Color.WHITE),
+
+            // New themes
+            "Ocean Blue" to Triple(0xFF000000.toInt(), 0xFF1E90FF.toInt(), Color.WHITE),   // blue keys
+            "Fiery Red" to Triple(0xFF000000.toInt(), 0xFFFF4500.toInt(), Color.WHITE),   // orange-red keys
+            "Sunshine Yellow" to Triple(0xFF000000.toInt(), 0xFFFFD700.toInt(), Color.BLACK), // bright yellow keys
+            "Soft Pink" to Triple(0xFF000000.toInt(), 0xFFFFC0CB.toInt(), Color.BLACK),   // pink keys
+            "Mystic Purple" to Triple(0xFF000000.toInt(), 0xFF800080.toInt(), Color.WHITE), // purple keys
+            "Tangerine" to Triple(0xFF000000.toInt(), 0xFFFFA500.toInt(), Color.BLACK),   // orange keys
+            "Deep Blue" to Triple(0xFF000000.toInt(), 0xFF00008B.toInt(), Color.WHITE)    // dark navy blue keys
         )
+
 
         const val ACTION_CHANGE_THEME = "com.simple_keybord.ACTION_CHANGE_THEME"
         const val EXTRA_THEME_NAME = "theme_name"
