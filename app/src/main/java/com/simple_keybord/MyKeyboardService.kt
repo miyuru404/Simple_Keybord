@@ -1,9 +1,12 @@
 package com.simple_keybord
 
+import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.view.KeyEvent
@@ -18,36 +21,54 @@ class MyKeyboardService : InputMethodService() {
     private lateinit var keyboardLayout: LinearLayout
     private val letterRows = mutableListOf<LinearLayout>()
 
-    // ====== CONFIGURABLE VARIABLES ======
     companion object {
-        // Keyboard background (default: light gray)
-        var keyboardBackgroundColor: Int = Color.BLACK
-        var keyboardBackgroundImage: Drawable? = null // can be set later from settings
-
-        // Keys styling
-        var keyBackgroundColor: Int = Color.BLACK
-        var keyTextColor: Int = Color.WHITE
-
-        // Outline configs
-        var keyBorderColor: Int = Color.WHITE
+        // Configurable variables
+        var keyboardBackgroundColor: Int = 0xFFFFFFFF.toInt() // Light default
+        var keyBackgroundColor: Int = Color.LTGRAY
+        var keyTextColor: Int = Color.BLACK
+        var keyBorderColor: Int = Color.BLACK
         var keyBorderWidthDp: Int = 2
         var keyCornerRadiusDp: Float = 8f
+        var keyTextSizeSp: Float = 22f
+        var keyHeightDp: Int = 60
+        var keyboardPaddingDp: Int = 5
 
-        // Size configs
-        var keyTextSizeSp: Float = 22f   // bigger text
-        var keyHeightDp: Int = 60        // button height
-        var keyboardPaddingDp: Int = 5   // space around keyboard
+        val themes = mapOf(
+            "Dark" to Triple(0xFF000000.toInt(), 0xFF212121.toInt(), Color.WHITE),
+            "Light" to Triple(0xFFFFFFFF.toInt(), Color.LTGRAY, Color.BLACK),
+            "Dracular" to Triple(0xFF000000.toInt(), Color.DKGRAY, Color.RED),
+            "Gray" to Triple(0xFF9E9E9E.toInt(), Color.GRAY, Color.BLACK),
+            "SkyBlue" to Triple(0xFF87CEEB.toInt(), Color.CYAN, Color.BLACK),
+            "Forest" to Triple(0xFF228B22.toInt(), Color.GREEN, Color.WHITE)
+        )
+
+        const val ACTION_CHANGE_THEME = "com.simple_keybord.ACTION_CHANGE_THEME"
+        const val EXTRA_THEME_NAME = "theme_name"
     }
 
-    // Simple (lowercase) and Capital letters
+    private val themeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_CHANGE_THEME) {
+                val themeName = intent.getStringExtra(EXTRA_THEME_NAME) ?: return
+                val colors = themes[themeName] ?: return
+                // Apply theme colors
+                keyboardBackgroundColor = colors.first
+                keyBackgroundColor = colors.second
+                keyTextColor = colors.third
+                applyTheme()
+            }
+        }
+    }
+
+    // Simple & capital rows
     private val simpleRow1 = listOf("q","w","e","r","t","y","u","i","o","p")
     private val simpleRow2 = listOf("a","s","d","f","g","h","j","k","l")
     private val simpleRow3 = listOf("^","z","x","c","v","b","n","m","Esc")
-
     private val capitalRow1 = listOf("Q","W","E","R","T","Y","U","I","O","P")
     private val capitalRow2 = listOf("A","S","D","F","G","H","J","K","L")
     private val capitalRow3 = listOf("^","Z","X","C","V","B","N","M","Esc")
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun onCreateInputView(): View {
         keyboardLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -57,12 +78,21 @@ class MyKeyboardService : InputMethodService() {
                 dpToPx(keyboardPaddingDp),
                 dpToPx(keyboardPaddingDp)
             )
-
-            // Set background color or image
-            background = keyboardBackgroundImage ?: ColorDrawable(keyboardBackgroundColor)
+            background = ColorDrawable(keyboardBackgroundColor)
         }
+
         showLetterKeys()
+
+        // Register theme broadcast receiver
+        val filter = IntentFilter(ACTION_CHANGE_THEME)
+        registerReceiver(themeReceiver, filter)
+
         return keyboardLayout
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(themeReceiver)
     }
 
     private fun showLetterKeys() {
@@ -80,36 +110,31 @@ class MyKeyboardService : InputMethodService() {
 
         letterRows.forEach { keyboardLayout.addView(it) }
 
-        // Bottom row: 123 toggle, Space, Enter, Settings
+        // Bottom row
+        val bottomRow = createBottomRow()
+        keyboardLayout.addView(bottomRow)
+
+        applyTheme()
+    }
+
+    private fun createBottomRow(): LinearLayout {
         val bottomRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(keyHeightDp)
-            )
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(keyHeightDp))
         }
 
         val numberToggle = createButton("123") { showNumberKeys() }
-        val spaceButton = createButton("Space") {
-            currentInputConnection.commitText(" ", 1)
-        }.apply { layoutParams = LinearLayout.LayoutParams(0, dpToPx(keyHeightDp), 4f) }
-
-        val enterButton = createButton("Enter") {
-            currentInputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-        }
-
-        val settingsButton = createButton("⚙️") {
-            val intent = Intent(this@MyKeyboardService, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(intent)
-        }
+        val spaceButton = createButton("Space") { currentInputConnection.commitText(" ", 1) }
+            .apply { layoutParams = LinearLayout.LayoutParams(0, dpToPx(keyHeightDp), 4f) }
+        val enterButton = createButton("Enter") { currentInputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER)) }
+        val settingsButton = createButton("⚙️") { startActivity(Intent(this@MyKeyboardService, MainActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }) }
 
         bottomRow.addView(numberToggle)
         bottomRow.addView(spaceButton)
         bottomRow.addView(enterButton)
         bottomRow.addView(settingsButton)
-        keyboardLayout.addView(bottomRow)
+
+        return bottomRow
     }
 
     private fun showNumberKeys() {
@@ -121,56 +146,26 @@ class MyKeyboardService : InputMethodService() {
         val row2Keys = listOf("-","/",";",":","(",")","$","&","@","\"")
         val row3Keys = listOf("^",".",",","?","!","#","%","*","Esc")
 
-        keyboardLayout.addView(createRow(row1Keys))
-        keyboardLayout.addView(createRow(row2Keys))
-        keyboardLayout.addView(createRow(row3Keys))
+        letterRows.add(createRow(row1Keys))
+        letterRows.add(createRow(row2Keys))
+        letterRows.add(createRow(row3Keys))
+        letterRows.forEach { keyboardLayout.addView(it) }
 
-        // Bottom row: ABC toggle, Space, Enter, Settings
-        val bottomRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(keyHeightDp)
-            )
-        }
-
-        val letterToggle = createButton("ABC") { showLetterKeys() }
-        val spaceButton = createButton("Space") {
-            currentInputConnection.commitText(" ", 1)
-        }.apply { layoutParams = LinearLayout.LayoutParams(0, dpToPx(keyHeightDp), 4f) }
-
-        val enterButton = createButton("Enter") {
-            currentInputConnection.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-        }
-
-        val settingsButton = createButton("⚙️") {
-            val intent = Intent(this@MyKeyboardService, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(intent)
-        }
-
-        bottomRow.addView(letterToggle)
-        bottomRow.addView(spaceButton)
-        bottomRow.addView(enterButton)
-        bottomRow.addView(settingsButton)
+        val bottomRow = createBottomRow()
         keyboardLayout.addView(bottomRow)
+
+        applyTheme()
     }
 
     private fun createRow(keys: List<String>): LinearLayout {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(keyHeightDp)
-            )
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dpToPx(keyHeightDp))
         }
-
         for (key in keys) {
             val button = createButton(key) { handleButtonClick(key) }
             row.addView(button)
         }
-
         return row
     }
 
@@ -180,24 +175,18 @@ class MyKeyboardService : InputMethodService() {
             setTextColor(keyTextColor)
             textSize = keyTextSizeSp
             layoutParams = LinearLayout.LayoutParams(0, dpToPx(keyHeightDp), 1f)
-
-            // Set background with border (outline)
             background = GradientDrawable().apply {
-                setColor(keyBackgroundColor)
+                setColor(keyBackgroundColor) // CHANGE THIS FOR ROW COLORS IF NEEDED
                 setStroke(dpToPx(keyBorderWidthDp), keyBorderColor)
                 cornerRadius = dpToPxF(keyCornerRadiusDp)
             }
-
             setOnClickListener { onClick() }
         }
     }
 
     private fun handleButtonClick(key: String) {
         when (key) {
-            "^" -> {
-                isCapital = !isCapital
-                updateLetterButtons()
-            }
+            "^" -> { isCapital = !isCapital; updateLetterButtons() }
             "Esc" -> currentInputConnection.deleteSurroundingText(1, 0)
             else -> {
                 val charToCommit = if (isCapital && !isNumber && key.length == 1) key.uppercase() else key
@@ -207,12 +196,11 @@ class MyKeyboardService : InputMethodService() {
     }
 
     private fun updateLetterButtons() {
-        val row1Keys = if (isCapital) capitalRow1 else simpleRow1
-        val row2Keys = if (isCapital) capitalRow2 else simpleRow2
-        val row3Keys = if (isCapital) capitalRow3 else simpleRow3
-
-        val allRows = listOf(row1Keys, row2Keys, row3Keys)
-
+        val allRows = listOf(
+            if (isCapital) capitalRow1 else simpleRow1,
+            if (isCapital) capitalRow2 else simpleRow2,
+            if (isCapital) capitalRow3 else simpleRow3
+        )
         for (i in letterRows.indices) {
             val row = letterRows[i]
             val keys = allRows[i]
@@ -223,14 +211,38 @@ class MyKeyboardService : InputMethodService() {
         }
     }
 
-    // Helpers
-    private fun dpToPx(dp: Int): Int {
-        val density = resources.displayMetrics.density
-        return (dp * density).toInt()
+    private fun applyTheme() {
+        // Update keyboard background
+        keyboardLayout.background = ColorDrawable(keyboardBackgroundColor)
+
+        // Update all key colors including bottom row
+        letterRows.forEach { row ->
+            for (i in 0 until row.childCount) {
+                val btn = row.getChildAt(i) as Button
+                val gd = GradientDrawable().apply {
+                    setColor(keyBackgroundColor) // Row color
+                    setStroke(dpToPx(keyBorderWidthDp), keyBorderColor)
+                    cornerRadius = dpToPxF(keyCornerRadiusDp)
+                }
+                btn.background = gd
+                btn.setTextColor(keyTextColor)
+            }
+        }
+
+        // Update bottom row
+        val bottomRow = keyboardLayout.getChildAt(keyboardLayout.childCount - 1) as LinearLayout
+        for (i in 0 until bottomRow.childCount) {
+            val btn = bottomRow.getChildAt(i) as Button
+            val gd = GradientDrawable().apply {
+                setColor(keyBackgroundColor) // Bottom row color same as theme
+                setStroke(dpToPx(keyBorderWidthDp), keyBorderColor)
+                cornerRadius = dpToPxF(keyCornerRadiusDp)
+            }
+            btn.background = gd
+            btn.setTextColor(keyTextColor)
+        }
     }
 
-    private fun dpToPxF(dp: Float): Float {
-        val density = resources.displayMetrics.density
-        return (dp * density)
-    }
+    private fun dpToPx(dp: Int): Int = (dp * resources.displayMetrics.density).toInt()
+    private fun dpToPxF(dp: Float): Float = (dp * resources.displayMetrics.density)
 }
